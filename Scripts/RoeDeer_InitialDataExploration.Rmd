@@ -182,6 +182,7 @@ ggsave("./Figures/CollisionHist_Speed.png",
 
 ```
 
+Fig. 3 looks...weird. We see the same indication that we discussed originally, that there is almost an increasing trend, if you squint. But the number of collisions in the 60 kmh speed zones mess it up. Most likely, as we discussed, this is related to 70 kmh zones being a specialty zone used in areas with poor viability or high collision danger.
 
 ### Month
 
