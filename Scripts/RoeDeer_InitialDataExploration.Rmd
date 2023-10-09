@@ -1,0 +1,314 @@
+---
+title: "RoeDeer_InitialDataExploration"
+author: "Ashlee Mikkelsen"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown is file is part of initial data exploration of the Roe deer collision data from Viken kommune in Norway. The final goal of this analysis is to asses whether reducing the speed limit will reduce or prevent Roe deer-vehicle collisons.  
+
+# Environment setup
+
+## Clear environment and set working directory
+
+
+```{r}
+
+rm(list=ls())
+
+setwd("C:/Users/amikk/Documents/Rprojects/RoeDeerVehCol")
+
+```
+
+
+## Load packages
+
+```{r}
+
+library(ggplot2)
+library(viridis)
+
+
+```
+
+
+
+## Set graphing theme
+
+```{r}
+
+mytheme <- theme(
+    axis.text = element_text(size = 12,face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    panel.grid.major = element_line(color = "grey92"),
+    panel.grid.minor = element_line(color = "grey96"),
+    panel.background = element_rect(fill = "white"),
+    axis.line = element_line(colour = "black",linewidth = 1),
+    axis.ticks = element_line(linewidth = 1),
+    legend.position = "top",
+    legend.key = element_rect(fill = NULL)
+    )
+theme_set(mytheme)
+
+P <- palette(magma(40))
+P <- palette(magma(40))
+
+```
+
+
+## Load data
+
+```{r}
+
+RD.dat <- read.csv("./Data/RoeDeerData_20231009.csv")
+RD.dat$fYear <- as.factor(RD.dat$Year)
+
+Tst<-data.frame(
+  do.call('rbind',
+          strsplit(
+            as.character(RD.dat$Date_text),
+            '-',
+            fixed=TRUE)
+          )
+  )
+RD.dat$Date_Month <- Tst$X1
+RD.dat$fMonth <- as.numeric(as.factor(RD.dat$Date_Month))
+RD.dat$Date_Day <- Tst$X2
+RD.dat$fSpeed <- as.factor(RD.dat$Naermest.fartssone)
+
+
+```
+
+
+# Initial data exploration
+
+## Data distributions
+
+### Year
+
+```{r}
+
+Annual.hist <- ggplot(data = RD.dat, aes(Year))+
+  geom_histogram(binwidth = 1,
+                 alpha=0.6,
+                 color="black")+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(expand = c(0,0),
+                     breaks = seq(2012,2023,2))+
+  ylab("Count of Roe deer-vehicle collisions")+
+  ggtitle("Fig. 1: Annual distribution of roe deer-vehicle collisions\nin Viken kommune, Norway")
+
+Annual.hist
+
+ggsave("./Figures/CollisionHist_Annual.png",
+       Annual.hist,
+       width = 7,
+       height = 6,
+       units = "in",
+       dpi = 900)
+
+
+```
+
+Looking at Fig.1, there is an uneven distribution of collisions across years, but it isn't so great that I think it will result in patterns being confounded by sampling bias (besides 2023, which I suggest we drop from the analysis).
+
+There is definitely a hint of an increase through time, but the number of collisions seem to have stabilized around 750/ year (2016-2020). It's quite interesting that they didn't dramatically decline during the pandemic years. I assume in these rural areas people were getting out to gå på tur og ski as vankelig and therefore traffic didn't decrease, and either did collisions.
+
+### Time of day
+
+```{r}
+
+Hourly.hist <- ggplot(data = RD.dat, aes(Time_24))+
+         geom_histogram(binwidth = 1,
+                        aes(fill=TimeCategory),
+                        alpha=0.7)+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(expand = c(0,0),
+                     breaks = seq(0,23,2))+
+  scale_fill_viridis(option = "magma",
+                     begin = 0.1,end = 0.9,
+                     discrete = TRUE)+
+  xlab("Time (in 24-hour format)")+
+  ylab("Count of roe deer-vehicle collisions")+
+  ggtitle("Fig. 2: Hourly distribution of roe deer-vehicle collisions\nin Viken kommune, Norway")+
+  labs(fill="time category")+
+  theme(legend.position = "right")
+
+Hourly.hist
+
+ggsave("./Figures/CollisionHist_Hourly.png",
+       Hourly.hist,
+       width = 7.5,
+       height = 6,
+       units = "in",
+       dpi = 900)
+
+
+```
+
+Looking at Fig. 2, there is an excessive number of collision reported at midnight. This could be a true phenomenon, but I think it's much more likely related to recording error or bias. Somehow related to human reporting rather than human driving behavior or roe deer behavior.
+
+However, there is a distinct difference in the distribution between AM and PM reporting, where, disregarding midnight (0), collisions in the AM hours have a somewhat normal distribution: they slowly increase from 0300 to a peak at 0700, then slowly decline. This is probably related to traffic patterns as people commute to work and deliver kids to barnehage og school before heading to work. Collisions remain low during the working/school hours, then quickly rise between 1600 and 1800 when most people return home after work. *But* unlike in the AM hours, there is no decrease that corresponds to the late afternoon decrease, collisions remain high from 1700 on.
+
+### Speed
+
+```{r}
+
+Speed.hist <- ggplot(data = RD.dat, aes(Naermest.fartssone))+
+  geom_histogram(binwidth = 10,
+                 alpha=0.7)+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(expand = c(0,0))+
+  xlab("Nearest speed zone to collision")+
+  ylab("Count of roe deer-vehicle collisions")+
+  ggtitle("Fig. 3: Distribution of roe deer-vehicle collisions by speed\nin Viken kommune, Norway")
+
+Speed.hist
+
+
+ggsave("./Figures/CollisionHist_Speed.png",
+       Speed.hist,
+       width = 7,
+       height = 6,
+       units = "in",
+       dpi = 900)
+
+
+```
+
+
+### Month
+
+```{r}
+
+Month.hist <- ggplot(data = RD.dat, aes(fMonth))+
+  geom_bar(aes(fill=Date_Month),
+           color="black",
+           alpha=0.7)+
+  scale_x_discrete(expand = c(0,0),
+                   limits=c("January",
+                            "February",
+                            "March",
+                            "April",
+                            "May",
+                            "June",
+                            "July",
+                            "August",
+                            "September",
+                            "October",
+                            "November",
+                            "December"))+
+  scale_fill_viridis(option = "magma",
+                     discrete = TRUE)+
+  scale_y_continuous(expand = c(0,0))+
+  ylab("Count of roe deer-vehicle collisions")+
+  ggtitle("Fig. 4: Distribution of roe deer-vehicle collisions by month\nin Viken kommune, Norway")+
+  xlab("Month")+
+  labs(fill="month")+
+  theme(legend.position ="na",
+        axis.text.x = element_text(angle = 45,
+                                   vjust = 0.7,
+                                   hjust = 0.6))
+
+Month.hist
+
+
+ggsave("./Figures/CollisionHist_Month.png",
+       Month.hist,
+       width = 8,
+       height = 6,
+       units = "in",
+       dpi = 900)
+
+
+
+```
+
+Based on Fig. 4, September-November are the highest months for roe deer-vehicle collisions, but they aren't extreme and they aren't the months that I would have guessed to have the greatest number of collisions. I would have guessed peak holiday times, either the summer holiday season or winter. This may be related to roe deer breeding biology and activity patterns of deer rather than human activity.
+
+### Year and Month
+
+```{r}
+
+
+MonthYear.hist <- ggplot(data = RD.dat, aes(fMonth))+
+  geom_bar(aes(fill=fYear),
+           color="black")+
+  scale_fill_viridis(option = "inferno",
+                     discrete = TRUE)+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_discrete(expand = c(0,0),
+                   limits=c("January",
+                            "February",
+                            "March",
+                            "April",
+                            "May",
+                            "June",
+                            "July",
+                            "August",
+                            "September",
+                            "October",
+                            "November",
+                            "December"))+
+  labs(fill="Year")+
+  xlab("Month")+
+  ylab("Count of roe deer-vehicle collisions")+
+  ggtitle("Fig. 5: Distribution of roe deer-vehicle collisions by year and month\nin Viken kommune, Norway")+
+  theme(legend.position = "bottom",
+         axis.text.x = element_text(angle = 45,
+                                   vjust = 0.7,
+                                   hjust = 0.6))
+
+MonthYear.hist
+
+
+ggsave("./Figures/CollisionHist_MonthYear.png",
+       MonthYear.hist,
+       width = 8,
+       height = 7,
+       units = "in",
+       dpi = 900)
+
+
+```
+
+Fig. 5 begins to reveal some of the limitations to our data. Collisions were not reported in all months in all years. Even if we ignore 2023. This will confound the affect of month and year, so when we begin modeling, we cannot include the effect of month and year as a continuous trend, only as a categorical variable. Other than that, the sampling distribution looks really good.
+
+### Year and speed
+
+```{r}
+
+YearSpeed.hist <- ggplot(data = RD.dat, aes(Year))+
+  geom_histogram(binwidth = 1,
+                 aes(fill=fSpeed),
+                 color="black",
+                 alpha=0.7)+
+  scale_fill_manual(values = c(P[7],P[10],P[14],P[18],P[22]))+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(expand = c(0,0),
+                     breaks = seq(2013,2023,2))+
+  labs(fill="Nearest speed zone")+
+   ylab("Count of roe deer-vehicle collisions")+
+  ggtitle("Fig. 6: Distribution of roe deer-vehicle collisions by year and speed\nin Viken kommune, Norway")+
+  theme(legend.position = "bottom")
+
+YearSpeed.hist
+
+
+ggsave("./Figures/CollisionHist_YearSpeed.png",
+       YearSpeed.hist,
+       width = 8,
+       height = 7,
+       units = "in",
+       dpi = 900)
+
+
+```
+
+Looking at Fig. 6, I think the sampling distribution of speed across years looks good, especially if we cut out the 40 kmh zones and 2023. But there aren't any wonky years with wildly different distributions or anything that makes me concerned. There seems to be an increase in the proportion of incidents reported in 70 kmh zones, but it's unclear if it's a real affect, or a increase in 70 kmh zones through time.
