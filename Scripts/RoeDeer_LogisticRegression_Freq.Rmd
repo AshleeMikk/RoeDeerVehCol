@@ -1,0 +1,156 @@
+---
+title: "Roe Deer Logistic Regression Analysis"
+author: "Ashlee Mikkelsen"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+This is the logistic regression file for the Roe deer- vehicle collision analysis for Viken kommune. Andreas, Rick and I took a contract from the kommune to estimate whether decreasing the speed limit on roads by 10 km/hr would reduce the number of vehicle collisions with Roe deer. 
+
+# Environment
+
+```{r}
+
+rm(list=ls())
+
+```
+
+## Set working directory
+
+```{r}
+
+setwd("~Rprojects\RoeDeerVehCol")
+
+```
+
+
+## Load packages
+
+```{r}
+
+library(ggplot2)
+library(lme4)
+library(wiqid)
+library(AICcmodavg)
+
+
+```
+
+
+## Load Data
+
+```{r}
+
+RoeDeer.df <- read.csv("Data\\df_VikenRoeDeer.csv",
+                         header=TRUE)
+RoeDeer.df$f.speed <- as.factor(RoeDeer.df$speed)
+
+```
+
+The original data file has 21090 observations and was processed by Rick prior to analysis. Explanation of data file:
+Columns
+1: Object ID- Unique identifyer for each record
+2: id- secondary identifyer identifies the response category of the observation and the observation number within the response category (1_1 is the first observation of the 1 response category)
+3: response- category 1= a collision 0= randomly drawn background points that are psuedo-absence points.
+4: X- continuous variable UTM northing of the record
+5: Y- continuous variable UTM easting of the record
+6: speed- discrete numeric Speed limit of road segment closest straight line distance from the record
+7: ADT-  (?)
+8: efficiency-  continuous variable (0-1) indexing the straightness of the road in which 0= perfectly straigh and records greater than 0 have some level curvature. 
+9: cover_fo- continuous variable (0-1) proportion of forest cover calculated as
+10: cover_agri- continuous variable (0-1) proportion of forest cover calculated as
+11: cover_wa- continuous variable (0-1) proportion of water calculated as
+12: cover_urban- continuous variable (0-1) proportion of urban land cover calculated as
+13: dist_cover- continuous variable staraight line distance from the record to (forest?) cover, calculated as, units= meters?
+14: dist-agri- continuous variable staraight line distance from the record to agriculture land cover, calculated as, units= meters?
+15: dist_water- continuous variable staraight line distance from the record to (forest?) cover, calculated as, units= meters?
+16: dist_urban- continuous variable staraight line distance from the record to (forest?) cover, calculated as, units= meters?
+17: geometry-
+18: f.speed- categorical variable for speed
+
+
+## Standardize continuos variables
+
+```{r}
+
+
+
+```
+
+
+# Models
+
+## Intercept only
+
+```{r}
+Models<-list()
+
+Models[[1]]<-INT<-glm(response~1,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+summary(INT)
+
+```
+
+
+## Speed
+
+### continuous discrete
+
+```{r}
+Models[[2]]<-SPD.c<-glm(response ~ speed,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+summary(SPD.c)
+
+```
+
+### categorical (factor)
+
+```{r}
+
+Models[[3]]<-SPD.f<-glm(response ~ f.speed,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+summary(SPD.f)
+
+spd.c_coef <- (exp(0.02)/(1+exp(0.02)))
+
+
+```
+
+
+
+# Generate model table for comparison
+
+```{r}
+
+Modnames <- c("INTERCEPT", "SPEED_cont", "SPPED_fac")
+
+##generate AICc table
+
+aictab(cand.set = Models,
+       modnames = Modnames, sort = TRUE, second.ord=TRUE)
+
+##round to 4 digits after decimal point and give log-likelihood
+print(aictab(cand.set = Models,
+             modnames = Modnames,
+             sort = TRUE),
+      digits = 4,
+      LL = TRUE)
+
+write.csv(aictab(cand.set = Models,
+                 modnames = Modnames,
+                 sort = TRUE,
+                 second.ord=TRUE),
+          file="~Results\\ModelSelectionTable.csv")
+
+
+```
+
