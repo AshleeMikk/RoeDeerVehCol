@@ -25,7 +25,7 @@ rm(list=ls())
 
 ```{r}
 
-setwd("~Rprojects\RoeDeerVehCol")
+setwd("~Rprojects\\RoeDeerVehCol")
 
 ```
 
@@ -39,6 +39,7 @@ library(lme4)
 library(wiqid)
 library(AICcmodavg)
 library(ggeffects)
+library(corrplot)
 
 
 ```
@@ -91,10 +92,11 @@ RoeDeer.df <- read.csv("Data\\df_VikenRoeDeer_7080Combined.csv",
                          header=TRUE)
 RoeDeer.df$f.speed <- as.factor(RoeDeer.df$speed)
 
-RoeDeer.df2 <- RoeDeer.df
-
 
 ```
+
+
+### Data description
 
 The original data file has 21090 observations and was processed by Rick prior to analysis. Explanation of data file:
 Columns
@@ -105,16 +107,16 @@ Columns
 5: Y- continuous variable UTM easting of the record
 6: speed- discrete numeric Speed limit of road segment closest straight line distance from the record
 7: ADT- discrete numeric Average daily traffic volume of road segment closest straight-line distance from the record.
-8: efficiency-  continuous variable (0-1) indexing the straightness of the road in which 0= perfectly straigh and records greater than 0 have some level curvature. 
-9: cover_fo- continuous variable (0-1) proportion of forest cover calculated as
-10: cover_agri- continuous variable (0-1) proportion of forest cover calculated as
-11: cover_wa- continuous variable (0-1) proportion of water calculated as
-12: cover_urban- continuous variable (0-1) proportion of urban land cover calculated as
-13: dist_cover- continuous variable staraight line distance from the record to (forest?) cover, calculated as, units= meters?
-14: dist-agri- continuous variable staraight line distance from the record to agriculture land cover, calculated as, units= meters?
-15: dist_water- continuous variable staraight line distance from the record to (forest?) cover, calculated as, units= meters?
-16: dist_urban- continuous variable staraight line distance from the record to (forest?) cover, calculated as, units= meters?
-17: geometry-
+8: efficiency-  continuous variable (0-1) indexing the straightness of the road in which 1= perfectly straight and records less than 1 have some level of curvature. 
+9: cover_fo- continuous variable (0-1) proportion of forest cover calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+10: cover_agri- continuous variable (0-1) proportion of forest cover calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+11: cover_wa- continuous variable (0-1) proportion of water calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+12: cover_urban- continuous variable (0-1) proportion of urban land cover calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+13: dist_cover- continuous variable straight line distance from the record to closest polygon where cover="FOREST", calculated as, units= meters?
+14: dist-agri- continuous variable straight line distance from the record to agriculture land cover, calculated as, units= meters?
+15: dist_water- continuous variable straight line distance from the record to (forest?) cover, calculated as, units= meters?
+16: dist_urban- continuous variable straight line distance from the record to (forest?) cover, calculated as, units= meters?
+17: geometry- Remnant variable from sf package. ignore
 18: f.speed- categorical variable for speed
 
 
@@ -122,19 +124,50 @@ Columns
 
 ```{r}
 
+RoeDeer.df$zADT <- standardize(RoeDeer.df$ADT)
+RoeDeer.df$zEFF <- standardize(RoeDeer.df$efficiency)
+RoeDeer.df$zFOR <- standardize(RoeDeer.df$cover_fo)
+RoeDeer.df$zAGR <- standardize(RoeDeer.df$cover_agri)
+RoeDeer.df$zWAT <- standardize(RoeDeer.df$cover_wa)
+RoeDeer.df$zURB <- standardize(RoeDeer.df$cover_urb)
+RoeDeer.df$zDFR <- standardize(RoeDeer.df$dist_cover)
+RoeDeer.df$zDAG <- standardize(RoeDeer.df$dist_agri)
+RoeDeer.df$zDWA <- standardize(RoeDeer.df$dist_water)
 
 
 ```
 
+# Corrrelations
 
-# Models
+Below I look at the correlations between continuous variables in the dataset to determine which can be included together in the same model
+
+```{r}
+
+
+RD_NumCov <- RoeDeer.df[,c(6,8:16)]
+C <- cor(RD_NumCov)
+
+
+corrplot(C,
+         type = "upper",
+         order="hclust",
+         addCoef.col = "black")
+
+
+```
+
+There are a few covariates that are highly correlated and cannot be included in the same model:
+The amount of urban cover is highly correlated (-0.64) with speed limit
+Forest cover is highly correlated with distance to forest (-0.63) and distance to agriculture (-0.59).
+
+# Univariate Models
 
 ## Intercept only
 
 ```{r}
-Models<-list()
+UnivariateModels<-list()
 
-Models[[1]]<-INT<-glm(response~1,
+UnivariateModels[[1]]<-INT<-glm(response~1,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 summary(INT)
@@ -150,12 +183,10 @@ Prob.Int <- logit2prob(INT$coefficients[1])
 
 ```{r}
 
-Models[[2]]<-SPD.c<-glm(response ~ speed,
+UnivariateModels[[2]]<-SPD.c<-glm(response ~ speed,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
-summary(SPD.c)
 
-spd.c_coef <- logit2prob(SPD.c$coefficients[2])
 
 ```
 
@@ -163,23 +194,195 @@ spd.c_coef <- logit2prob(SPD.c$coefficients[2])
 
 ```{r}
 
-Models[[3]]<-SPD.f<-glm(response ~ f.speed,
+UnivariateModels[[3]]<-SPD.f<-glm(response ~ f.speed,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
-summary(SPD.f)
 
 
 ```
 
 
-### Traffic volume
+## Traffic volume
 ```{r}
-Models[[4]]<-SPD.c_Traf<-glm(response ~ speed+ADT,
+
+UnivariateModels[[4]]<-TRAF<-glm(response ~ zADT,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 ```
 
-#### Model output
+
+## Forest Cover
+
+```{r}
+
+UnivariateModels[[5]]<-FORCOV<-glm(response ~ zFOR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Agriculture Cover
+
+```{r}
+
+UnivariateModels[[6]]<-AGCOV<-glm(response ~ zAGR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Water Cover
+
+```{r}
+
+UnivariateModels[[7]]<-WACOV<-glm(response ~ zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Urban cover
+
+```{r}
+
+UnivariateModels[[8]]<-URBCOV<-glm(response ~ zURB,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Distance to forest
+
+```{r}
+
+UnivariateModels[[9]]<-DISFOR<-glm(response ~ zDFR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Distance to Agriculture
+
+```{r}
+
+UnivariateModels[[10]]<-DISTAG<-glm(response ~ zDAG,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Distance to water
+
+```{r}
+
+UnivariateModels[[11]]<-DISWA<-glm(response ~ zDWA,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Road Efficiency
+
+```{r}
+
+UnivariateModels[[12]]<-REFF<-glm(response ~ zEFF,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+```
+
+
+
+## Univariate AICc table
+
+```{r}
+
+UnivariateModnames <- c("INTERCEPT", "SPEEDc", "SPEEDf", "TRAFFIC",
+                        "FOREST COVER", "AG COVER", "WATER COVER","URBAN COVER",
+                        "DIST FOREST","DIST AG","DIST WATER", "EFFICIENCY")
+
+##generate AICc table
+
+aictab(cand.set = UnivariateModels,
+       modnames = UnivariateModnames, sort = TRUE, second.ord=TRUE)
+
+##round to 4 digits after decimal point and give log-likelihood
+print(aictab(cand.set = UnivariateModels,
+             modnames = UnivariateModnames,
+             sort = TRUE),
+      digits = 4,
+      LL = TRUE)
+
+write.csv(aictab(cand.set = UnivariateModels,
+                 modnames = UnivariateModnames,
+                 sort = TRUE,
+                 second.ord=TRUE),
+          file="Results\\UnivariateModelSelectionTable.csv")
+
+
+```
+
+
+Based on the AICc table, all of the covariates did a better job at explaining variation in the data than the intercept only, so I will carry all covariates through
+
+# Bivariate models with focus on speed
+
+Distance to forest was the best univariate model, so I will include it in the bivariate model list as a comparison.
+
+The categorical covariate for speed out-performed the continuous covariate, so I will use that one in further modeling steps.
+
+```{r}
+
+BivariateModels<-list()
+
+BivariateModels[[1]]<-DISFOR
+
+```
+
+
+## Speed & Distance to forest
+
+```{r}
+
+BivariateModels[[2]]<-SPD.f_DFOR<-glm(response ~ f.speed+zDFR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Bivariate AICc table
+
+```{r}
+
+BivariateModnames <- c("DIST FOREST","SPEEDc_DIST FOREST")
+
+
+## generate and print AICc table
+print(aictab(cand.set = BivariateModels,
+             modnames = BivariateModnames,
+             sort = TRUE),
+      digits = 4, #round to 4 digits after decimal point
+      LL = TRUE #give log-likelihood
+      )
+
+write.csv(aictab(cand.set = BivariateModels,
+                 modnames = BivariateModnames,
+                 sort = TRUE,
+                 second.ord=TRUE),
+          file="Results\\BivariateModelSelectionTable.csv")
+
+
+```
+
+
+# Top Model output
 
 ```{r}
 
@@ -226,31 +429,4 @@ ggplot()+
 
 ```
 
-
-# Generate model table for comparison
-
-```{r}
-
-Modnames <- c("INTERCEPT", "SPEEDc", "SPEEDf", "SPEEDc_TRAFFIC")
-
-##generate AICc table
-
-aictab(cand.set = Models,
-       modnames = Modnames, sort = TRUE, second.ord=TRUE)
-
-##round to 4 digits after decimal point and give log-likelihood
-print(aictab(cand.set = Models,
-             modnames = Modnames,
-             sort = TRUE),
-      digits = 4,
-      LL = TRUE)
-
-write.csv(aictab(cand.set = Models,
-                 modnames = Modnames,
-                 sort = TRUE,
-                 second.ord=TRUE),
-          file="~Results\\ModelSelectionTable.csv")
-
-
-```
 
