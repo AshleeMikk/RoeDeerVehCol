@@ -828,7 +828,7 @@ ggplot(data = SPD_FULL.df)+
 ```
 
 
-# Comparison of land cover across speed limit categories
+# High speed land cover
 
 Modelling showed that distance to forest and the amount of urban cover were more predictive of WVCs than the speed limit on the road, so let's compare the distribution of land cover types across the three higher speed limits that managers are more likely to be interested in.
 
@@ -872,6 +872,111 @@ ggplot(data = subset(HighSpdCollisions, f.speed=="60"))+
   scale_y_continuous(expand = c(0,0))+
   scale_x_continuous(expand = c(0,0))
   
+
+```
+
+
+
+## reformat data to be used in pie charts of cover types
+
+For each speed, I need to put all the cover classes together in a single column with another column with the cover class and the speed category.
+
+So I may be inefficient, but I first take each speed and create dummy variables to hold the cover categories
+
+```{r}
+
+###### 60 KMH
+
+KMH60 <- subset(HighSpdCollisions, speed=="60")
+
+COVERCat60 <-c(rep("FOR",nrow(KMH60)),
+               rep("AGR",nrow(KMH60)),
+               rep("WAT",nrow(KMH60)),
+               rep("URB",nrow(KMH60))
+)
+
+COVER60 <- c(KMH60$cover_fo,
+             KMH60$cover_agri,
+             KMH60$cover_wa,
+             KMH60$cover_urb)
+
+SPD60 <- rep("60", length(COVER60))
+
+
+###### 70 KMH
+
+KMH70 <- subset(HighSpdCollisions, speed=="70")
+
+COVERCat70 <-c(rep("FOR",nrow(KMH70)),
+               rep("AGR",nrow(KMH70)),
+               rep("WAT",nrow(KMH70)),
+               rep("URB",nrow(KMH70))
+)
+
+COVER70 <- c(KMH70$cover_fo,
+             KMH70$cover_agri,
+             KMH70$cover_wa,
+             KMH70$cover_urb)
+
+SPD70 <- rep("70", length(COVER70))
+
+###### 80 KMH
+
+
+
+COVERCat80 <-c(rep("FOR",nrow(KMH80)),
+               rep("AGR",nrow(KMH80)),
+               rep("WAT",nrow(KMH80)),
+               rep("URB",nrow(KMH80))
+)
+COVER80 <- c(KMH80$cover_fo,
+             KMH80$cover_agri,
+             KMH80$cover_wa,
+             KMH80$cover_urb)
+
+SPD80 <- rep("80", length(COVER80))
+
+
+HighSpeedCover <- data.frame(
+  cbind(
+    Speed = c(SPD60,SPD70,SPD80),
+    CoverCat = c(COVERCat60,COVERCat70,COVERCat80),
+    CoverProp =c(COVER60,COVER70,COVER80)
+  )
+)
+
+HighSpeedCover$CoverProp <- as.numeric(HighSpeedCover$CoverProp)
+
+```
+
+
+```{r}
+
+ggplot(data = HighSpeedCover)+
+  geom_bar(aes(CoverProp,
+               fill=CoverCat))
+
+
+ggplot(data = HighSpeedCover, aes(CoverCat,CoverProp))+
+  geom_col(aes(fill=Speed))+
+  coord_polar("y", start = 0)+
+  facet_wrap(~Speed)
+  
+
+
+```
+
+
+
+## Pie chart
+
+```{r}
+
+
+ggplot(data = HighSpeedCover, aes(y=CoverProp, fill=CoverCat))+
+  geom_()
+
+
 
 
 ```
