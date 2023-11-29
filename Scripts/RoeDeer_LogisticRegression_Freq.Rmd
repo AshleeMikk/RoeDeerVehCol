@@ -323,17 +323,14 @@ UnivariateModnames <- c("INTERCEPT", "SPEEDc", "SPEEDf", "TRAFFIC",
                         "DIST FOREST","DIST AG","DIST WATER", "EFFICIENCY",
                         "DIST URBAN")
 
-##generate AICc table
 
-aictab(cand.set = UnivariateModels,
-       modnames = UnivariateModnames, sort = TRUE, second.ord=TRUE)
-
-##round to 4 digits after decimal point and give log-likelihood
+##Generate and print AICc table
 print(aictab(cand.set = UnivariateModels,
              modnames = UnivariateModnames,
              sort = TRUE),
-      digits = 4,
-      LL = TRUE)
+      digits = 4, #round to 4 digits after decimal point
+      LL = TRUE #give log-likelihood 
+      )
 
 write.csv(aictab(cand.set = UnivariateModels,
                  modnames = UnivariateModnames,
@@ -532,6 +529,18 @@ Prob10 <- logit2prob(SpeedEqn(60))-logit2prob(SpeedEqn(50))
 Speed.df <- as.data.frame(cbind(dummy.speed,
                                 PredProb.Speed))
 
+Speed.Fvalues<-fitted(SPD.c)
+Speed.eFIT<-exp(fitted(SPD.c))
+RoeDeer.df$Speed.FIT<-Speed.Fvalues
+RoeDeer.df$Speed.eFIT<-Speed.eFIT
+
+
+SPD<-ggpredict(SPD.c, terms = "speed")
+print(SPD)
+
+plot(SPD, residuals =TRUE)
+
+
 
 ```
 
@@ -541,20 +550,37 @@ Speed.df <- as.data.frame(cbind(dummy.speed,
 
 ```{r}
 
-ggplot(data = Speed.df, aes(dummy.speed,
-                            PredProb.Speed))+
-  geom_line(linewidth=1.1)+
+SpdPlot <- ggplot(data = SPD, aes(x, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high), alpha=0.1)+
+  geom_line(lwd=1.1)+
   scale_x_continuous(expand=c(0,0))+
   scale_y_continuous(expand = c(0,0),
                      limits = c(0,0.5),
                      breaks = seq(0,0.5,0.1))+
   ylab("Probability of roe deer - vehicle collision")+
   xlab("Nearest posted speed limit (km/h)")+
-  geom_text(label="Increase of 10 km/h = ~ 4% increase in collision probability",
-            size=6,
-            x=50,y=0.45)
+  geom_text(label="Increase of 10 km/h =\n~ 4% increase in collision probability",
+            size=4,
+            x=50,y=0.35)+
+  geom_segment(aes(x=50, y=0.255,
+                   xend=60, yend=0.255),
+               linewidth=1.2,
+               linetype="dashed",
+               color="red4")+
+  geom_segment(aes(x=60, y=0.255,
+                   xend=60, yend=0.295),
+               linewidth=1.2,
+               linetype="dashed",
+               color="red4")
+  
 
+SpdPlot
 
+ggsave(plot = SpdPlot,
+       "Spd4Reduc.png",
+       height=5, width = 6,
+       units = "in",
+       dpi=700)
 
 ```
 
@@ -590,6 +616,10 @@ zPredProb.DistFor <- logit2prob(zPredlogit.DistFor)
 dummy.ForDist <- (zDummy.ForDist*sd(RoeDeer.df$dist_cover))+
   mean(RoeDeer.df$dist_cover)
 
+log(0.04/(1-0.04))
+(((-3.18+0.75)/-0.33)*sd(RoeDeer.df$dist_cover))+mean(RoeDeer.df$dist_cover)
+
+ggplot(data = )
 
 ##### Urban cover
 
@@ -623,6 +653,19 @@ URB_FULL.df <- as.data.frame(cbind(dummy.ForDist,
                                    zPredProb.UrbCov))
 
 
+UrbanFull_DF.Fvalues<-fitted(URB_FULL)
+UrbanFull_DF.eFIT<-exp(fitted(URB_FULL))
+RoeDeer.df$UrbanFull_DF.FIT<-UrbanFull_DF.Fvalues
+RoeDeer.df$UrbanFull_DF.eFIT<-UrbanFull_DF.eFIT
+
+
+UrbanFull_DF<-ggpredict(URB_FULL, terms = "zDFR[all]")
+print(UrbanFull_DF)
+UrbanFull_DF$aX <- (UrbanFull_DF$x*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+plot(UrbanFull_DF, residuals =TRUE)
+
+
 ```
 
 
@@ -631,6 +674,8 @@ URB_FULL.df <- as.data.frame(cbind(dummy.ForDist,
 ```{r}
 
 ####### Distance to Forest
+
+logit2prob(-0.75)+logit2prob(-0.33)
 
 ggplot(data = URB_FULL.df, aes(dummy.ForDist,
                                zPredProb.DistFor))+
@@ -642,13 +687,65 @@ ggplot(data = URB_FULL.df, aes(dummy.ForDist,
                      breaks = seq(0,0.5,0.1))+
   ylab("Probability of roe deer - vehicle collision")+
   xlab("Distance to forest cover (meters)")
+####################
 
+
+
+
+Dist4Reduc <- ggplot(data = UrbanFull_DF, aes(aX, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high), alpha=0.1)+
+  geom_line(lwd=1.1)+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of  roe deer - vehicle collision")+
+  xlab("Distance to forest cover (meters)")+
+  geom_segment(aes(y=0.375, x=0,
+                   yend=0.375, xend=67.5),
+             linewidth=1.2,
+             color="grey60",
+             alpha=0.6,
+             linetype="dashed")+
+   geom_segment(aes(y=0.335, x=67.5,
+                   yend=0.375, xend=67.5),
+             linewidth=1.2,
+             color="grey60",
+             alpha=0.6,
+             linetype="dashed")+
+  geom_segment(aes(y=0.335, x=0,
+                   yend=0.335, xend=67.5),
+               linewidth=1.2,
+               color="red4",
+               alpha=0.6,
+               linetype="dashed")+
+  geom_segment(aes(y=0, x=67.5,
+                   yend=0.335, xend=67.5),
+               linewidth=1.2,
+               color="red4",
+               alpha=0.6,
+               linetype="dashed")+
+  geom_line(linewidth=1.1)+
+  geom_text(label="~ 65 m increase in distance to forest corresponds\nto a 4% reduction in collision probability",
+            x=350,y=0.35,
+            size=3)+
+  geom_text(label="65 m",
+            size=4,
+            x=105, y=0.01,
+            color="red4")
+Dist4Reduc
+
+ggsave(plot = Dist4Reduc,
+       "Dist4Reduc.png",
+       height=5, width = 6,
+       units = "in",
+       dpi=700)
 
 ###### Urban Cover
 
 ggplot(data =URB_FULL.df, aes(dummy.UrbCover,
        zPredProb.UrbCov))+
-  geom_line()+
+  geom_line(linewidth=1.1)+
   geom_point()+
   scale_x_continuous(expand=c(0,0))+
   scale_y_continuous(expand = c(0,0),
@@ -785,6 +882,10 @@ SPD_FULL.df <- as.data.frame(cbind(dummy.ForDist,
                                     zPredProb.DistFor.Spd40,
                                    zPredProb.DistFor.Spd30))
 
+Testdf<-ggpredict(SPD.f_FULL, terms=c("zDFR [all]","f.speed_comb"))
+Testdf$Xa <- (Testdf$x*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+
 
 ```
 
@@ -795,33 +896,43 @@ SPD_FULL.df <- as.data.frame(cbind(dummy.ForDist,
 
 ```{r}
 
-ggplot(data = SPD_FULL.df)+
-  geom_line(aes(dummy.ForDist,
-                zPredProb.DistFor.Spd80),
-            color="turquoise4",
-            linewidth=1.1)+
-  geom_line(aes(dummy.ForDist,
-                zPredProb.DistFor.Spd60),
-            color="turquoise3",
-            linewidth=1.1)+
-  geom_line(aes(dummy.ForDist,
-                zPredProb.DistFor.Spd50),
-            color="turquoise2",
-            linewidth=1.1)+
-  geom_line(aes(dummy.ForDist,
-                zPredProb.DistFor.Spd40),
-            color="turquoise1",
-            linewidth=1.1)+
-  geom_line(aes(dummy.ForDist,
-                zPredProb.DistFor.Spd30),
-            color="cadetblue1",
-            linewidth=1.1)+
+Spd_DistFor <- ggplot(data = Testdf, aes(Xa, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high,
+                  fill=group), alpha=0.15)+
+  geom_line(aes(color=group,
+                lty=group),
+            lwd=1.6)+
   scale_x_continuous(expand=c(0,0))+
   scale_y_continuous(expand = c(0,0),
                      limits = c(0,0.5),
                      breaks = seq(0,0.5,0.1))+
   ylab("Probability of roe deer - vehicle collision")+
-  xlab("Distance to forest cover (meters)")
+  xlab("Distance to forest cover (meters)")+
+  scale_color_manual(values = c("cadetblue1",
+                                "turquoise1",
+                                "turquoise2",
+                                "turquoise3",
+                                "turquoise4"),
+                     labels=c("30","40","50","60","70/80"))+
+  scale_fill_manual(values = c("cadetblue1",
+                                "turquoise1",
+                                "turquoise2",
+                                "turquoise3",
+                                "turquoise4"),
+                    labels=c("30","40","50","60","70/80"))+
+  scale_linetype_manual(labels=c("30","40","50","60","70/80"),
+                        values = c(1,2,4,5,6))+
+  labs(fill="Posted speed limit (km/h)",
+       color="Posted speed limit (km/h)",
+       lty="Posted speed limit (km/h)")
+
+ggsave(plot = Spd_DistFor,
+       "Spd_DistFor.png",
+       width = 6, height = 5,
+       units = "in",
+       dpi=700)
+
+
 
 
 
@@ -952,16 +1063,31 @@ HighSpeedCover$CoverProp <- as.numeric(HighSpeedCover$CoverProp)
 
 ```{r}
 
-ggplot(data = HighSpeedCover)+
-  geom_bar(aes(CoverProp,
-               fill=CoverCat))
-
-
-ggplot(data = HighSpeedCover, aes(CoverCat,CoverProp))+
-  geom_col(aes(fill=Speed))+
-  coord_polar("y", start = 0)+
+ggplot(data = subset(HighSpeedCover, CoverProp>0),
+       aes(CoverProp))+
+  geom_histogram(aes(fill=CoverCat))+
   facet_wrap(~Speed)
+
+library(wesanderson)
+pal <-  wes_palette("Rushmore1",
+                    type = "discrete")
+
+HighSpdCover <- ggplot(data = subset(HighSpeedCover, CoverProp>0),
+       aes(CoverProp))+
+  geom_histogram(aes(fill=Speed),
+                 alpha=0.7)+
+  facet_wrap(~CoverCat)+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(expand=c(0,0))+
+  scale_fill_manual(values=c("turquoise3","tan4","limegreen"))
   
+  
+ggsave(plot=HighSpdCover,
+       "HighSpdCover.png",
+       width = 6, height = 10,
+       units = "in",
+       dpi=700)
+
 
 
 ```
@@ -973,9 +1099,11 @@ ggplot(data = HighSpeedCover, aes(CoverCat,CoverProp))+
 ```{r}
 
 
-ggplot(data = HighSpeedCover, aes(y=CoverProp, fill=CoverCat))+
-  geom_()
-
+ggplot(data = HighSpeedCover, aes(CoverCat,CoverProp))+
+  geom_col(aes(fill=CoverCat))+
+  coord_polar("y", start = 0)+
+  facet_wrap(~Speed)
+  
 
 
 
