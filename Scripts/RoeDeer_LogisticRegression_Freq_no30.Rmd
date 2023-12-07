@@ -1,0 +1,875 @@
+---
+title: "Roe Deer Collision Probability- excluding 30 km/h"
+author: "Ashlee Mikkelsen"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+# Introduction
+
+This is the logistic regression file for the Roe deer- vehicle collision analysis for Viken kommune. After an intial data analysis (see RoeDeer_LogitsticRegression_Freq.Rmd) we decided to remove records for 30 km/h because this is a particulalrly slow speed limit and places the kommune is unlikely to manage. Andreas, Rick and I took a contract from the kommune to estimate whether decreasing the speed limit on roads by 10 km/hr would reduce the number of vehicle collisions with Roe deer. 
+
+# Environment
+
+```{r}
+
+rm(list=ls())
+
+```
+
+## Set working directory
+
+```{r}
+
+setwd("~Rprojects\\RoeDeerVehCol")
+
+```
+
+
+## Load packages
+
+```{r}
+
+library(ggplot2)
+library(lme4)
+library(wiqid)
+library(AICcmodavg)
+library(ggeffects)
+library(corrplot)
+
+```
+
+
+## set graphing theme
+
+```{r, include=FALSE}
+
+mytheme <- theme(
+    axis.text = element_text(size = 12,face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    panel.grid.major = element_line(color = "grey92"),
+    panel.grid.minor = element_line(color = "grey96"),
+    panel.background = element_rect(fill = "white"),
+    axis.line = element_line(colour = "black",linewidth = 1),
+    axis.ticks = element_line(linewidth = 1),
+    legend.position = "top"
+    )
+theme_set(mytheme)
+
+
+```
+
+
+## Functions
+
+```{r}
+
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+
+
+rsq <- function (x, y) cor(x, y) ^ 2
+
+```
+
+
+## Load Data
+
+```{r}
+
+RoeDeer.df <- read.csv("Data\\df_VikenRoeDeer_7080Combined.csv",
+                         header=TRUE)
+RoeDeer.df$f.speed <- as.factor(RoeDeer.df$speed)
+RoeDeer.df$f.speed_comb <- as.factor(RoeDeer.df$speed_comb)
+
+RoeDeer.df <- subset(RoeDeer.df, speed>30)
+
+
+```
+
+
+### Data description
+
+The original data file has 21090 observations and was processed by Rick prior to analysis. Explanation of data file:
+Columns
+1: Object ID- Unique identifyer for each record
+2: id- secondary identifyer identifies the response category of the observation and the observation number within the response category (1_1 is the first observation of the 1 response category)
+3: response- category 1= a collision 0= randomly drawn background points that are psuedo-absence points.
+4: X- continuous variable UTM northing of the record in ETRS 98 / UTM 33N (epsg code: 25833).
+5: Y- continuous variable UTM easting of the record in ETRS 98 / UTM 33N (epsg code: 25833).
+6: speed- discrete numeric Speed limit of road segment closest straight line distance from the record
+7: ADT- discrete numeric Average daily traffic volume of road segment closest straight-line distance from the record.
+8: efficiency-  continuous variable (0-1) indexing the straightness of the road in which 1= perfectly straight and records less than 1 have some level of curvature. 
+9: cover_fo- continuous variable (0-1) proportion of forest cover calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+10: cover_agri- continuous variable (0-1) proportion of forest cover calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+11: cover_wa- continuous variable (0-1) proportion of water calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+12: cover_urban- continuous variable (0-1) proportion of urban land cover calculated as area of habitat variable within a 100m buffer divided by the area of the 100m buffer * 100. 
+13: dist_cover- continuous variable straight line distance from the record to closest polygon where cover="FOREST", calculated as, units= meters?
+14: dist-agri- continuous variable straight line distance from the record to agriculture land cover, calculated as, units= meters?
+15: dist_water- continuous variable straight line distance from the record to (forest?) cover, calculated as, units= meters?
+16: dist_urban- continuous variable straight line distance from the record to (forest?) cover, calculated as, units= meters?
+17: geometry- Remnant variable from sf package. ignore
+18: f.speed- categorical variable for speed
+
+
+## Standardize continuos variables
+
+```{r}
+
+RoeDeer.df$zADT <- standardize(RoeDeer.df$ADT)
+RoeDeer.df$zEFF <- standardize(RoeDeer.df$efficiency)
+RoeDeer.df$zFOR <- standardize(RoeDeer.df$cover_fo)
+RoeDeer.df$zAGR <- standardize(RoeDeer.df$cover_agri)
+RoeDeer.df$zWAT <- standardize(RoeDeer.df$cover_wa)
+RoeDeer.df$zURB <- standardize(RoeDeer.df$cover_urb)
+RoeDeer.df$zDFR <- standardize(RoeDeer.df$dist_cover)
+RoeDeer.df$zDAG <- standardize(RoeDeer.df$dist_agri)
+RoeDeer.df$zDWA <- standardize(RoeDeer.df$dist_water)
+RoeDeer.df$zDUR <- standardize(RoeDeer.df$dist_urban)
+
+
+```
+
+# Corrrelations
+
+Below I look at the correlations between continuous variables in the dataset to determine which can be included together in the same model
+
+```{r}
+
+
+RD_NumCov <- RoeDeer.df[,c(6,8:16)]
+C <- cor(RD_NumCov)
+
+
+VarCorrPlot <- corrplot(C,
+         type = "upper",
+         order="hclust",
+         addCoef.col = "black")
+
+
+```
+
+There are a few covariates that are highly correlated and cannot be included in the same model:
+The amount of urban cover is highly correlated (-0.64) with speed limit
+Forest cover is highly correlated with distance to forest (-0.63) and distance to agriculture (-0.59).
+
+
+# Univariate Models
+
+## Intercept only
+
+```{r}
+UnivariateModels<-list()
+
+UnivariateModels[[1]]<-INT<-glm(response~1,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+summary(INT)
+
+Prob.Int <- logit2prob(INT$coefficients[1])
+
+```
+
+
+## Speed
+
+### continuous discrete
+
+```{r}
+
+UnivariateModels[[2]]<-SPD.c<-glm(response ~ speed,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+
+```
+
+
+### categorical (factor, 70/80 seperated)
+
+```{r}
+
+UnivariateModels[[3]]<-SPD.f_sep<-glm(response ~ f.speed,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+
+```
+
+
+
+## Traffic volume
+```{r}
+
+UnivariateModels[[4]]<-TRAF<-glm(response ~ zADT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+```
+
+
+## Forest Cover
+
+```{r}
+
+UnivariateModels[[5]]<-FORCOV<-glm(response ~ zFOR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Agriculture Cover
+
+```{r}
+
+UnivariateModels[[6]]<-AGCOV<-glm(response ~ zAGR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Water Cover
+
+```{r}
+
+UnivariateModels[[7]]<-WACOV<-glm(response ~ zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Urban cover
+
+```{r}
+
+UnivariateModels[[8]]<-URBCOV<-glm(response ~ zURB,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Distance to forest
+
+```{r}
+
+UnivariateModels[[9]]<-DISFOR<-glm(response ~ zDFR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Distance to Agriculture
+
+```{r}
+
+UnivariateModels[[10]]<-DISTAG<-glm(response ~ zDAG,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Distance to water
+
+```{r}
+
+UnivariateModels[[11]]<-DISWA<-glm(response ~ zDWA,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Road Efficiency
+
+```{r}
+
+UnivariateModels[[12]]<-EFF<-glm(response ~ zEFF,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+```
+
+
+## Distance to urban
+
+```{r}
+
+UnivariateModels[[13]]<-DUR<-glm(response ~ zDUR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+```
+
+
+
+
+## Univariate AICc table
+
+```{r}
+
+UnivariateModnames <- c("INTERCEPT",
+                        "SPEEDc",
+                        "SPEEDf",
+                        "TRAFFIC",
+                        "FOREST COVER",
+                        "AG COVER", 
+                        "WATER COVER",
+                        "URBAN COVER",
+                        "DIST FOREST",
+                        "DIST AG",
+                        "DIST WATER",
+                        "EFFICIENCY",
+                        "DIST URBAN")
+
+
+##Generate and print AICc table
+print(aictab(cand.set = UnivariateModels,
+             modnames = UnivariateModnames,
+             sort = TRUE),
+      digits = 4, #round to 4 digits after decimal point
+      LL = TRUE #give log-likelihood 
+      )
+
+write.csv(aictab(cand.set = UnivariateModels,
+                 modnames = UnivariateModnames,
+                 sort = TRUE,
+                 second.ord=TRUE),
+          file="Results\\UnivariateModelSelectionTable_no30.csv")
+
+
+```
+
+
+# Bivariate and full models
+
+```{r}
+
+BivariateModels<-list()
+
+BivariateModels[[1]]<-DISFOR
+
+```
+
+
+## Speed & Distance to forest
+
+```{r}
+
+BivariateModels[[2]]<-SPD.f_DFOR<-glm(response ~ f.speed+
+                                        zDFR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+
+
+## Urban cover & Distance to forest
+
+```{r}
+
+BivariateModels[[3]]<-URBC_DFOR<-glm(response ~ zURB+
+                                       zDFR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+
+## Speed & Forest Cover
+
+```{r}
+
+BivariateModels[[4]]<-SPD.f_FORC<-glm(response ~ f.speed+
+                                        zFOR,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Speed & Efficiency
+
+```{r}
+
+BivariateModels[[5]]<-SPD.f_EFF<-glm(response ~ f.speed+
+                                       zEFF,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+
+## Speed & Traffic
+
+```{r}
+
+BivariateModels[[6]]<-SPD.f_ADT<-glm(response ~ f.speed+
+                                       zADT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+
+## Full speed model (no interactions)
+
+
+
+Urban cover excluded because it is highly correlated with speed and distance to forest is included rather than forest cover because it performed better than forest cover
+
+
+```{r}
+
+BivariateModels[[7]]<-SPD.f_FULL_Sep<-glm(response ~ f.speed+
+                                        zDFR+
+                                        zEFF+
+                                        zADT+
+                                        zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+
+## Full urban cover model (no interactions)
+
+Urban cover excluded because it is highly correlated with speed
+
+
+```{r}
+
+BivariateModels[[8]]<-URB_FULL<-glm(response ~ zURB+
+                                        zDFR+
+                                        zEFF+
+                                        zADT+
+                                        zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+## Full speed model (SPD*DFR)
+
+Urban cover excluded because it is highly correlated with speed and distance to forest is included rather than forest cover because it performed better than forest cover
+
+
+```{r}
+
+BivariateModels[[9]]<-
+  SepSPD.f_FULL_INX<-
+  glm(response ~ f.speed+
+        zDFR+
+        zEFF+
+        zADT+
+        zWAT+
+        f.speed*zDFR,
+      data = RoeDeer.df,
+      family = binomial(link="logit"))
+
+```
+
+
+
+## Bivariate AICc table
+
+```{r}
+
+
+BivariateModnames <- c("DIST FOREST",
+                       "SPEEDc_DIST FOREST",
+                       "URBAN COVER_DIST FOR",
+                       "SPEEDf_FORESTCOVER",
+                       "SPEEDf_EFFICIENCY",
+                       "SPEEDf_TRAFFIC",
+                       "SPEEDf_FULL",
+                       "URBAN COVER_FULL",
+                       "SepSPEEDf_FULL_INX")
+
+
+## generate and print AICc table
+print(aictab(cand.set = BivariateModels,
+             modnames = BivariateModnames,
+             sort = TRUE),
+      digits = 4, #round to 4 digits after decimal point
+      LL = TRUE #give log-likelihood
+      )
+
+write.csv(aictab(cand.set = BivariateModels,
+                 modnames = BivariateModnames,
+                 sort = TRUE,
+                 second.ord=TRUE),
+          file="Results\\BivariateModelSelectionTable_no30.csv")
+
+
+```
+
+
+
+
+# Speed only output
+
+## Numerical
+
+```{r}
+
+summary(SPD.c)
+
+dummy.speed <- seq(min(RoeDeer.df$speed),
+                   max(RoeDeer.df$speed),
+                   length=100)
+
+SpeedEqn <- function(x){
+  SPD.c$coefficients[1]+
+    SPD.c$coefficients[2]*x
+}
+
+PredLogit.speed <- SpeedEqn(dummy.speed)
+PredProb.Speed <- logit2prob(PredLogit.speed)
+
+Prob10 <- logit2prob(SpeedEqn(60))-logit2prob(SpeedEqn(50))
+
+Speed.df <- as.data.frame(cbind(dummy.speed,
+                                PredProb.Speed))
+
+Speed.Fvalues<-fitted(SPD.c)
+Speed.eFIT<-exp(fitted(SPD.c))
+RoeDeer.df$Speed.FIT<-Speed.Fvalues
+RoeDeer.df$Speed.eFIT<-Speed.eFIT
+
+
+SPD<-ggpredict(SPD.c, terms = "speed")
+print(SPD)
+
+plot(SPD, residuals =TRUE)
+
+
+
+```
+
+
+
+## Speed Graph
+
+```{r}
+
+SpdPlot <- ggplot(data = SPD, aes(x, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high), alpha=0.1)+
+  geom_line(lwd=1.1)+
+  scale_x_continuous(expand=c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of roe deer - vehicle collision")+
+  xlab("Nearest posted speed limit (km/h)")+
+  geom_text(label="Increase of 10 km/h =\n~ 4% increase in collision probability",
+            size=5,
+            x=60,y=0.4)+
+  geom_segment(aes(x=50, y=0.255,
+                   xend=60, yend=0.255),
+               linewidth=1.2,
+               linetype="dashed",
+               color="red4")+
+  geom_segment(aes(x=60, y=0.255,
+                   xend=60, yend=0.295),
+               linewidth=1.2,
+               linetype="dashed",
+               color="red4")
+  
+
+SpdPlot
+
+ggsave(plot = SpdPlot,
+       "Spd4Reduc.png",
+       height=5, width = 6,
+       units = "in",
+       dpi=700)
+
+```
+
+
+
+# Top Model output (Urban cover)
+
+## Numerical output
+
+```{r}
+
+summary(URB_FULL)
+
+#### Distance to forest
+
+zDummy.ForDist <- seq(min(RoeDeer.df$zDFR),
+                     max(RoeDeer.df$zDFR),
+                     length=100)
+
+ForDist.TM <- function(x){
+  URB_FULL$coefficients[1]+
+    URB_FULL$coefficients[2]*mean(RoeDeer.df$zURB)+
+    URB_FULL$coefficients[3]*x+
+    URB_FULL$coefficients[4]*mean(RoeDeer.df$zEFF)+
+    URB_FULL$coefficients[5]*mean(RoeDeer.df$zADT)+
+    URB_FULL$coefficients[6]*mean(RoeDeer.df$zWAT)
+}
+
+zPredlogit.DistFor <- ForDist.TM(zDummy.ForDist)
+zPredProb.DistFor <- logit2prob(zPredlogit.DistFor)
+
+dummy.ForDist <- (zDummy.ForDist*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+
+log(0.04/(1-0.04))
+(((-3.18+0.75)/-0.33)*sd(RoeDeer.df$dist_cover))+mean(RoeDeer.df$dist_cover)
+
+
+##### Urban cover
+
+zDummy.UrbanCover <- seq(min(RoeDeer.df$zURB),
+                     max(RoeDeer.df$zURB),
+                     length=100)
+
+UrbCov.TM <- function(x){
+  URB_FULL$coefficients[1]+
+    URB_FULL$coefficients[2]*x+
+    URB_FULL$coefficients[3]*mean(RoeDeer.df$zDFR)+
+    URB_FULL$coefficients[4]*mean(RoeDeer.df$zEFF)+
+    URB_FULL$coefficients[5]*mean(RoeDeer.df$zADT)+
+    URB_FULL$coefficients[6]*mean(RoeDeer.df$zWAT)
+}
+
+zPredlogit.UrbCov <- UrbCov.TM(zDummy.UrbanCover)
+zPredProb.UrbCov <- logit2prob(zPredlogit.UrbCov)
+
+dummy.UrbCover <- (zDummy.UrbanCover*sd(RoeDeer.df$cover_urb))+
+  mean(RoeDeer.df$cover_urb)
+
+
+
+###### Data frame
+
+URB_FULL.df <- as.data.frame(cbind(dummy.ForDist,
+                                   zPredProb.DistFor,
+                                   dummy.UrbCover,
+                                   zPredProb.UrbCov))
+
+
+UrbanFull_DF.Fvalues<-fitted(URB_FULL)
+UrbanFull_DF.eFIT<-exp(fitted(URB_FULL))
+RoeDeer.df$UrbanFull_DF.FIT<-UrbanFull_DF.Fvalues
+RoeDeer.df$UrbanFull_DF.eFIT<-UrbanFull_DF.eFIT
+
+
+UrbanFull_DF<-ggpredict(URB_FULL, terms = "zDFR[all]")
+print(UrbanFull_DF)
+UrbanFull_DF$aX <- (UrbanFull_DF$x*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+plot(UrbanFull_DF, residuals =TRUE)
+
+
+```
+
+
+## Graphical output
+
+```{r}
+
+####### Distance to Forest
+
+logit2prob(-0.75)+logit2prob(-0.33)
+
+ggplot(data = URB_FULL.df, aes(dummy.ForDist,
+                               zPredProb.DistFor))+
+  geom_line()+
+  geom_point()+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of roe deer - vehicle collision")+
+  xlab("Distance to forest cover (meters)")
+####################
+
+
+
+
+Dist4Reduc <- ggplot(data = UrbanFull_DF, aes(aX, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high), alpha=0.1)+
+  geom_line(lwd=1.1)+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of  roe deer - vehicle collision")+
+  xlab("Distance to forest cover (meters)")+
+  geom_segment(aes(y=0.375, x=0,
+                   yend=0.375, xend=67.5),
+             linewidth=1.2,
+             color="grey60",
+             alpha=0.6,
+             linetype="dashed")+
+   geom_segment(aes(y=0.335, x=67.5,
+                   yend=0.375, xend=67.5),
+             linewidth=1.2,
+             color="grey60",
+             alpha=0.6,
+             linetype="dashed")+
+  geom_segment(aes(y=0.335, x=0,
+                   yend=0.335, xend=67.5),
+               linewidth=1.2,
+               color="red4",
+               alpha=0.6,
+               linetype="dashed")+
+  geom_segment(aes(y=0, x=67.5,
+                   yend=0.335, xend=67.5),
+               linewidth=1.2,
+               color="red4",
+               alpha=0.6,
+               linetype="dashed")+
+  geom_line(linewidth=1.1)+
+  geom_text(label="~ 65 m increase in distance to forest corresponds\nto a 4% reduction in collision probability",
+            x=550,y=0.30,
+            size=5)+
+  geom_text(label="65 m",
+            size=5,
+            x=105, y=0.01,
+            color="red4")
+Dist4Reduc
+
+ggsave(plot = Dist4Reduc,
+       "Dist4Reduc.png",
+       height=5, width = 6,
+       units = "in",
+       dpi=700)
+
+###### Urban Cover
+
+ggplot(data =URB_FULL.df, aes(dummy.UrbCover,
+       zPredProb.UrbCov))+
+  geom_line(linewidth=1.1)+
+  geom_point()+
+  scale_x_continuous(expand=c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of roe deer - vehicle collision")+
+  xlab("Proportion of urban cover within 100 m buffer of collision")
+
+
+```
+
+
+
+# Secondary model output (speed*Dist to forest)
+
+
+# Speed.c * distance to forest
+
+```{r}
+
+
+SPD.c_FULL_INX<-
+  glm(response ~ speed+
+        zDFR+
+        zEFF+
+        zADT+
+        zWAT+
+        speed*zDFR,
+      data = RoeDeer.df,
+      family = binomial(link="logit"))
+
+summary(SPD.c_FULL_INX)
+
+SpdDistFor_Eqn <- function(x,z){
+  SPD.c_FULL_INX$coefficients[1]+
+    (SPD.c_FULL_INX$coefficients[2]*z)+  #speed
+    (SepSPD.f_FULL_INX$coefficients[3]*x)+  #zDFR
+    (SepSPD.f_FULL_INX$coefficients[4]*mean(RoeDeer.df$zEFF))+  #zEFF
+    (SepSPD.f_FULL_INX$coefficients[5]*mean(RoeDeer.df$zADT))+  #zADT
+    (SepSPD.f_FULL_INX$coefficients[6]*mean(RoeDeer.df$zWAT))+  #ZWAT
+    (SepSPD.f_FULL_INX$coefficients[7]*(z*x)) #speed*zDFR
+}
+
+(0-mean(RoeDeer.df$dist_cover))/sd(RoeDeer.df$dist_cover)
+(50-mean(RoeDeer.df$dist_cover))/sd(RoeDeer.df$dist_cover)
+
+logit2prob(SpdDistFor_Eqn(x=-0.71,z=80))
+
+logit2prob(SpdDistFor_Eqn(x=-0.32,z=70))
+
+Testdf<-ggpredict(SepSPD.f_FULL_INX,
+                  terms=c("zDFR [all]","f.speed"))
+Testdf$Xa <- (Testdf$x*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+
+```
+
+
+
+
+## Graphical output
+
+
+```{r}
+
+Spd_DistFor_INX <- ggplot(data = Testdf, aes(Xa, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high,
+                  fill=group), alpha=0.2)+
+  geom_line(aes(color=group,
+                lty=group),
+            lwd=1.6)+
+  scale_x_continuous(expand=c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of roe deer - vehicle collision")+
+  xlab("Distance to forest cover (meters)")+
+  scale_color_manual(values = c("#a6bddb",
+                                "#67a9cf",
+                                "#3690c0",
+                                "#02818a",
+                                "#016450"))+
+  scale_fill_manual(values = c("#a6bddb",
+                                "#67a9cf",
+                                "#3690c0",
+                                "#02818a",
+                                "#016450"))+
+  scale_linetype_manual(values = c("dotdash",
+                                   "dashed",
+                                   "twodash",
+                                   "dotted",
+                                   "solid"))+
+ labs(fill="Posted speed limit (km/h)",
+       color="Posted speed limit (km/h)",
+       lty="Posted speed limit (km/h)")
+
+Spd_DistFor_INX
+
+ggsave(plot = Spd_DistFor_INX,
+       "Spd_DistFor_INX.png",
+       width = 6, height = 5,
+       units = "in",
+       dpi=700)
+
+
+```
+
+
+

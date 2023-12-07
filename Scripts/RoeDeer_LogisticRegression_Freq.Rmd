@@ -194,11 +194,11 @@ UnivariateModels[[2]]<-SPD.c<-glm(response ~ speed,
 
 ```
 
-### categorical (factor)
+### categorical (factor, 70/80 combined)
 
 ```{r}
 
-UnivariateModels[[3]]<-SPD.f<-glm(response ~ f.speed_comb,
+UnivariateModels[[3]]<-SPD.f_Comb<-glm(response ~ f.speed_comb,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -206,10 +206,23 @@ UnivariateModels[[3]]<-SPD.f<-glm(response ~ f.speed_comb,
 ```
 
 
+### categorical (factor, 70/80 seperated)
+
+```{r}
+
+UnivariateModels[[4]]<-SPD.f_sep<-glm(response ~ f.speed,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+
+```
+
+
+
 ## Traffic volume
 ```{r}
 
-UnivariateModels[[4]]<-TRAF<-glm(response ~ zADT,
+UnivariateModels[[5]]<-TRAF<-glm(response ~ zADT,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 ```
@@ -219,7 +232,7 @@ UnivariateModels[[4]]<-TRAF<-glm(response ~ zADT,
 
 ```{r}
 
-UnivariateModels[[5]]<-FORCOV<-glm(response ~ zFOR,
+UnivariateModels[[6]]<-FORCOV<-glm(response ~ zFOR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -230,7 +243,7 @@ UnivariateModels[[5]]<-FORCOV<-glm(response ~ zFOR,
 
 ```{r}
 
-UnivariateModels[[6]]<-AGCOV<-glm(response ~ zAGR,
+UnivariateModels[[7]]<-AGCOV<-glm(response ~ zAGR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -241,7 +254,7 @@ UnivariateModels[[6]]<-AGCOV<-glm(response ~ zAGR,
 
 ```{r}
 
-UnivariateModels[[7]]<-WACOV<-glm(response ~ zWAT,
+UnivariateModels[[8]]<-WACOV<-glm(response ~ zWAT,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -252,7 +265,7 @@ UnivariateModels[[7]]<-WACOV<-glm(response ~ zWAT,
 
 ```{r}
 
-UnivariateModels[[8]]<-URBCOV<-glm(response ~ zURB,
+UnivariateModels[[9]]<-URBCOV<-glm(response ~ zURB,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -263,7 +276,7 @@ UnivariateModels[[8]]<-URBCOV<-glm(response ~ zURB,
 
 ```{r}
 
-UnivariateModels[[9]]<-DISFOR<-glm(response ~ zDFR,
+UnivariateModels[[10]]<-DISFOR<-glm(response ~ zDFR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -274,7 +287,7 @@ UnivariateModels[[9]]<-DISFOR<-glm(response ~ zDFR,
 
 ```{r}
 
-UnivariateModels[[10]]<-DISTAG<-glm(response ~ zDAG,
+UnivariateModels[[11]]<-DISTAG<-glm(response ~ zDAG,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -285,7 +298,7 @@ UnivariateModels[[10]]<-DISTAG<-glm(response ~ zDAG,
 
 ```{r}
 
-UnivariateModels[[11]]<-DISWA<-glm(response ~ zDWA,
+UnivariateModels[[12]]<-DISWA<-glm(response ~ zDWA,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -296,7 +309,7 @@ UnivariateModels[[11]]<-DISWA<-glm(response ~ zDWA,
 
 ```{r}
 
-UnivariateModels[[12]]<-EFF<-glm(response ~ zEFF,
+UnivariateModels[[13]]<-EFF<-glm(response ~ zEFF,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 ```
@@ -306,7 +319,7 @@ UnivariateModels[[12]]<-EFF<-glm(response ~ zEFF,
 
 ```{r}
 
-UnivariateModels[[13]]<-DUR<-glm(response ~ zDUR,
+UnivariateModels[[14]]<-DUR<-glm(response ~ zDUR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 ```
@@ -318,8 +331,9 @@ UnivariateModels[[13]]<-DUR<-glm(response ~ zDUR,
 
 ```{r}
 
-UnivariateModnames <- c("INTERCEPT", "SPEEDc", "SPEEDf", "TRAFFIC",
-                        "FOREST COVER", "AG COVER", "WATER COVER","URBAN COVER",
+UnivariateModnames <- c("INTERCEPT", "SPEEDc", "SPEEDf_com","SPEEDf_sep",
+                        "TRAFFIC","FOREST COVER", "AG COVER", 
+                        "WATER COVER","URBAN COVER",
                         "DIST FOREST","DIST AG","DIST WATER", "EFFICIENCY",
                         "DIST URBAN")
 
@@ -337,6 +351,18 @@ write.csv(aictab(cand.set = UnivariateModels,
                  sort = TRUE,
                  second.ord=TRUE),
           file="Results\\UnivariateModelSelectionTable.csv")
+
+
+```
+
+
+### compare combined and seperated speed categories
+
+```{r}
+
+summary(SPD.f_Comb)
+
+summary(SPD.f_sep)
 
 
 ```
@@ -363,7 +389,8 @@ BivariateModels[[1]]<-DISFOR
 
 ```{r}
 
-BivariateModels[[2]]<-SPD.f_DFOR<-glm(response ~ f.speed_comb+zDFR,
+BivariateModels[[2]]<-SPD.f_DFOR<-glm(response ~ f.speed+
+                                        zDFR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -388,7 +415,8 @@ BivariateModels[[3]]<-URBC_DFOR<-glm(response ~ zURB+zDFR,
 
 ```{r}
 
-BivariateModels[[4]]<-SPD.f_FORC<-glm(response ~ f.speed_comb+zFOR,
+BivariateModels[[4]]<-SPD.f_FORC<-glm(response ~ f.speed+
+                                        zFOR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -399,7 +427,8 @@ BivariateModels[[4]]<-SPD.f_FORC<-glm(response ~ f.speed_comb+zFOR,
 
 ```{r}
 
-BivariateModels[[5]]<-SPD.f_EFF<-glm(response ~ f.speed_comb+zEFF,
+BivariateModels[[5]]<-SPD.f_EFF<-glm(response ~ f.speed+
+                                       zEFF,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -411,7 +440,8 @@ BivariateModels[[5]]<-SPD.f_EFF<-glm(response ~ f.speed_comb+zEFF,
 
 ```{r}
 
-BivariateModels[[6]]<-SPD.f_ADT<-glm(response ~ f.speed_comb+zADT,
+BivariateModels[[6]]<-SPD.f_ADT<-glm(response ~ f.speed+
+                                       zADT,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
@@ -421,11 +451,15 @@ BivariateModels[[6]]<-SPD.f_ADT<-glm(response ~ f.speed_comb+zADT,
 
 ## Full speed model (no interactions)
 
+
+
 Urban cover excluded because it is highly correlated with speed and distance to forest is included rather than forest cover because it performed better than forest cover
+
+### Speed 70 and 80 combined
 
 ```{r}
 
-BivariateModels[[7]]<-SPD.f_FULL<-glm(response ~ f.speed_comb+
+SPD.f_FULL_comb<-glm(response ~ f.speed_comb+
                                         zDFR+
                                         zEFF+
                                         zADT+
@@ -437,6 +471,39 @@ BivariateModels[[7]]<-SPD.f_FULL<-glm(response ~ f.speed_comb+
 
 
 
+### Speed 70 and 80 seperated
+
+```{r}
+
+BivariateModels[[7]]<-SPD.f_FULL_Sep<-glm(response ~ f.speed+
+                                        zDFR+
+                                        zEFF+
+                                        zADT+
+                                        zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+### Seperate speed categories (30 kmh removed) 
+
+```{r}
+
+RoeDeer.df.no30 <- subset(RoeDeer.df, speed>30)
+
+BivariateModels[[8]]<-SepSPD.f_FULL_INX<-
+  glm(response ~ f.speed+
+        zDFR+
+        zEFF+
+        zADT+
+        zWAT,
+      data = RoeDeer.df.no30,
+      family = binomial(link="logit"))
+
+```
+
+
 ## Full urban cover model (no interactions)
 
 Urban cover excluded because it is highly correlated with speed
@@ -444,7 +511,7 @@ Urban cover excluded because it is highly correlated with speed
 
 ```{r}
 
-BivariateModels[[8]]<-URB_FULL<-glm(response ~ zURB+
+BivariateModels[[9]]<-URB_FULL<-glm(response ~ zURB+
                                         zDFR+
                                         zEFF+
                                         zADT+
@@ -459,18 +526,57 @@ BivariateModels[[8]]<-URB_FULL<-glm(response ~ zURB+
 
 Urban cover excluded because it is highly correlated with speed and distance to forest is included rather than forest cover because it performed better than forest cover
 
+### Combined speed categories
+
 ```{r}
 
-BivariateModels[[9]]<-SPD.f_FULL_INX<-glm(response ~ f.speed_comb+
+ComSPD.f_FULL_INX<-glm(response ~ f.speed_comb+
                                         zDFR+
                                         zEFF+
                                         zADT+
                                         zWAT+
-                                        f.speed*zDFR,
+                                        f.speed_comb*zDFR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
 
 ```
+
+
+### Seperate speed categories
+
+```{r}
+
+BivariateModels[[10]]<-
+  SepSPD.f_FULL_INX<-
+  glm(response ~ f.speed+
+        zDFR+
+        zEFF+
+        zADT+
+        zWAT+
+        f.speed*zDFR,
+      data = RoeDeer.df,
+      family = binomial(link="logit"))
+
+```
+
+
+### Seperate speed categories (30 kmh removed)
+
+```{r}
+RoeDeer.df.no30 <- subset(RoeDeer.df, speed>30)
+
+BivariateModels[[11]]<-SepSPD.f_FULL_INX<-
+  glm(response ~ f.speed+
+        zDFR+
+        zEFF+
+        zADT+
+        zWAT+
+        f.speed*zDFR,
+      data = RoeDeer.df.no30,
+      family = binomial(link="logit"))
+
+```
+
 
 
 
@@ -479,10 +585,13 @@ BivariateModels[[9]]<-SPD.f_FULL_INX<-glm(response ~ f.speed_comb+
 
 ```{r}
 
+
 BivariateModnames <- c("DIST FOREST","SPEEDc_DIST FOREST",
                        "URBAN COVER_DIST FOR", "SPEEDf_FOREST COVER",
                        "SPEEDf_EFFICIENCY", "SPEEDf_TRAFFIC",
-                       "SPEEDf_FULL", "URBAN COVER_FULL", "SPEEDf_FULL_INX")
+                       "SPEEDf_FULL_Com","SPEEDf_FULL_Sep", 
+                       "URBAN COVER_FULL","ComSPEEDf_FULL_INX",
+                       "SepSPEEDf_FULL_INX")
 
 
 ## generate and print AICc table
@@ -761,13 +870,15 @@ ggplot(data =URB_FULL.df, aes(dummy.UrbCover,
 
 
 
-# Secondary Model output (categorical speed)
+# Secondary Model output (categorical speed with interaction)
 
 ## Numerical output
 
+### Combined speed categories
+
 ```{r}
 
-summary(SPD.f_FULL)
+summary(ComSPD.f_FULL_INX)
 mean(RoeDeer.df$speed)
 
 #### Distance to forest
@@ -882,7 +993,8 @@ SPD_FULL.df <- as.data.frame(cbind(dummy.ForDist,
                                     zPredProb.DistFor.Spd40,
                                    zPredProb.DistFor.Spd30))
 
-Testdf<-ggpredict(SPD.f_FULL, terms=c("zDFR [all]","f.speed_comb"))
+Testdf<-ggpredict(SepSPD.f_FULL_INX,
+                  terms=c("zDFR [all]","f.speed"))
 Testdf$Xa <- (Testdf$x*sd(RoeDeer.df$dist_cover))+
   mean(RoeDeer.df$dist_cover)
 
@@ -896,7 +1008,7 @@ Testdf$Xa <- (Testdf$x*sd(RoeDeer.df$dist_cover))+
 
 ```{r}
 
-Spd_DistFor <- ggplot(data = Testdf, aes(Xa, predicted))+
+Spd_DistFor_INX <- ggplot(data = Testdf, aes(Xa, predicted))+
   geom_ribbon(aes(ymin=conf.low, ymax=conf.high,
                   fill=group), alpha=0.15)+
   geom_line(aes(color=group,
@@ -908,26 +1020,26 @@ Spd_DistFor <- ggplot(data = Testdf, aes(Xa, predicted))+
                      breaks = seq(0,0.5,0.1))+
   ylab("Probability of roe deer - vehicle collision")+
   xlab("Distance to forest cover (meters)")+
-  scale_color_manual(values = c("cadetblue1",
-                                "turquoise1",
-                                "turquoise2",
-                                "turquoise3",
-                                "turquoise4"),
-                     labels=c("30","40","50","60","70/80"))+
-  scale_fill_manual(values = c("cadetblue1",
-                                "turquoise1",
-                                "turquoise2",
-                                "turquoise3",
-                                "turquoise4"),
-                    labels=c("30","40","50","60","70/80"))+
-  scale_linetype_manual(labels=c("30","40","50","60","70/80"),
-                        values = c(1,2,4,5,6))+
-  labs(fill="Posted speed limit (km/h)",
+  scale_color_manual(values = c("#d0d1e6",
+                                "#a6bddb",
+                                "#67a9cf",
+                                "#3690c0",
+                                "#02818a",
+                                "#016450"))+
+  scale_fill_manual(values = c("#d0d1e6",
+                                "#a6bddb",
+                                "#67a9cf",
+                                "#3690c0",
+                                "#02818a",
+                                "#016450"))+
+ labs(fill="Posted speed limit (km/h)",
        color="Posted speed limit (km/h)",
        lty="Posted speed limit (km/h)")
 
-ggsave(plot = Spd_DistFor,
-       "Spd_DistFor.png",
+Spd_DistFor_INX
+
+ggsave(plot = Spd_DistFor_INX,
+       "Spd_DistFor_INX.png",
        width = 6, height = 5,
        units = "in",
        dpi=700)
@@ -937,6 +1049,216 @@ ggsave(plot = Spd_DistFor,
 
 
 ```
+
+
+
+
+### Seperate speed categories
+
+```{r}
+
+summary(SPD.f_FULL_Sep)
+mean(RoeDeer.df$speed)
+
+#### Distance to forest
+
+zDummy.ForDist <- seq(min(RoeDeer.df$zDFR),
+                     max(RoeDeer.df$zDFR),
+                     length=100)
+## At 80 kmh
+ForDist.Spd80.SM <- function(x){
+  SPD.f_FULL$coefficients[1]+
+    SPD.f_FULL$coefficients[2]*0+
+    SPD.f_FULL$coefficients[3]*0+
+    SPD.f_FULL$coefficients[4]*0+
+    SPD.f_FULL$coefficients[5]*0+
+    SPD.f_FULL$coefficients[6]*1+
+    SPD.f_FULL$coefficients[7]*x+
+    SPD.f_FULL$coefficients[8]*mean(RoeDeer.df$zEFF)+
+    SPD.f_FULL$coefficients[9]*mean(RoeDeer.df$zADT)+
+    SPD.f_FULL$coefficients[10]*mean(RoeDeer.df$zWAT)+
+    SPD.f_FULL$coefficients[11]*mean(RoeDeer.df$zDAG)
+}
+
+zPredlogit.DistFor.Spd80 <- ForDist.Spd80.SM(zDummy.ForDist)
+zPredProb.DistFor.Spd80 <- logit2prob(zPredlogit.DistFor.Spd80)
+
+dummy.ForDist <- (zDummy.ForDist*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+
+
+## At 70 kmh
+ForDist.Spd70.SM <- function(x){
+  SPD.f_FULL$coefficients[1]+
+    SPD.f_FULL$coefficients[2]*0+
+    SPD.f_FULL$coefficients[3]*0+
+    SPD.f_FULL$coefficients[4]*0+
+    SPD.f_FULL$coefficients[5]*1+
+    SPD.f_FULL$coefficients[6]*0+
+    SPD.f_FULL$coefficients[7]*x+
+    SPD.f_FULL$coefficients[8]*mean(RoeDeer.df$zEFF)+
+    SPD.f_FULL$coefficients[9]*mean(RoeDeer.df$zADT)+
+    SPD.f_FULL$coefficients[10]*mean(RoeDeer.df$zWAT)+
+    SPD.f_FULL$coefficients[11]*mean(RoeDeer.df$zDAG)
+}
+
+zPredlogit.DistFor.Spd70 <- ForDist.Spd70.SM(zDummy.ForDist)
+zPredProb.DistFor.Spd70 <- logit2prob(zPredlogit.DistFor.Spd70)
+
+dummy.ForDist <- (zDummy.ForDist*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+
+
+## At 60
+
+ForDist.Spd60.SM <- function(x){
+  SPD.f_FULL$coefficients[1]+ #30
+    SPD.f_FULL$coefficients[2]*0+ #40
+    SPD.f_FULL$coefficients[3]*0+ #50
+    SPD.f_FULL$coefficients[4]*1+ #60
+    SPD.f_FULL$coefficients[5]*0+ #70
+    SPD.f_FULL$coefficients[6]*0+ #80
+    SPD.f_FULL$coefficients[7]*x+
+    SPD.f_FULL$coefficients[8]*mean(RoeDeer.df$zEFF)+
+    SPD.f_FULL$coefficients[9]*mean(RoeDeer.df$zADT)+
+    SPD.f_FULL$coefficients[10]*mean(RoeDeer.df$zWAT)+
+    SPD.f_FULL$coefficients[11]*mean(RoeDeer.df$zDAG)
+}
+
+zPredlogit.DistFor.Spd60 <- ForDist.Spd60.SM(zDummy.ForDist)
+zPredProb.DistFor.Spd60 <- logit2prob(zPredlogit.DistFor.Spd60)
+
+## At 50
+
+ForDist.Spd50.SM <- function(x){
+  SPD.f_FULL$coefficients[1]+
+    SPD.f_FULL$coefficients[2]*0+
+    SPD.f_FULL$coefficients[3]*1+
+    SPD.f_FULL$coefficients[4]*0+
+    SPD.f_FULL$coefficients[5]*0+
+    SPD.f_FULL$coefficients[6]*0+
+    SPD.f_FULL$coefficients[7]*x+
+    SPD.f_FULL$coefficients[8]*mean(RoeDeer.df$zEFF)+
+    SPD.f_FULL$coefficients[9]*mean(RoeDeer.df$zADT)+
+    SPD.f_FULL$coefficients[10]*mean(RoeDeer.df$zWAT)+
+    SPD.f_FULL$coefficients[11]*mean(RoeDeer.df$zDAG)
+}
+
+zPredlogit.DistFor.Spd50 <- ForDist.Spd50.SM(zDummy.ForDist)
+zPredProb.DistFor.Spd50 <- logit2prob(zPredlogit.DistFor.Spd50)
+
+
+## At 40
+
+ForDist.Spd40.SM <- function(x){
+  SPD.f_FULL$coefficients[1]+
+    SPD.f_FULL$coefficients[2]*1+
+    SPD.f_FULL$coefficients[3]*0+
+    SPD.f_FULL$coefficients[4]*0+
+    SPD.f_FULL$coefficients[5]*0+
+    SPD.f_FULL$coefficients[6]*0+
+    SPD.f_FULL$coefficients[7]*x+
+    SPD.f_FULL$coefficients[8]*mean(RoeDeer.df$zEFF)+
+    SPD.f_FULL$coefficients[9]*mean(RoeDeer.df$zADT)+
+    SPD.f_FULL$coefficients[10]*mean(RoeDeer.df$zWAT)+
+    SPD.f_FULL$coefficients[11]*mean(RoeDeer.df$zDAG)
+}
+
+zPredlogit.DistFor.Spd40 <- ForDist.Spd40.SM(zDummy.ForDist)
+zPredProb.DistFor.Spd40 <- logit2prob(zPredlogit.DistFor.Spd40)
+
+
+
+## At 30
+
+ForDist.Spd30.SM <- function(x){
+  SPD.f_FULL$coefficients[1]+
+    SPD.f_FULL$coefficients[2]*0+
+    SPD.f_FULL$coefficients[3]*0+
+    SPD.f_FULL$coefficients[4]*0+
+    SPD.f_FULL$coefficients[5]*0+
+    SPD.f_FULL$coefficients[6]*0+
+    SPD.f_FULL$coefficients[7]*x+
+    SPD.f_FULL$coefficients[8]*mean(RoeDeer.df$zEFF)+
+    SPD.f_FULL$coefficients[9]*mean(RoeDeer.df$zADT)+
+    SPD.f_FULL$coefficients[10]*mean(RoeDeer.df$zWAT)+
+    SPD.f_FULL$coefficients[11]*mean(RoeDeer.df$zDAG)
+}
+
+zPredlogit.DistFor.Spd30 <- ForDist.Spd30.SM(zDummy.ForDist)
+zPredProb.DistFor.Spd30 <- logit2prob(zPredlogit.DistFor.Spd30)
+
+
+
+
+###### Data frame
+
+SPD_FULL.df_sep <- as.data.frame(cbind(dummy.ForDist,
+                                   zPredProb.DistFor.Spd80,
+                                   zPredProb.DistFor.Spd80,
+                                   zPredProb.DistFor.Spd60,
+                                   zPredProb.DistFor.Spd50,
+                                   zPredProb.DistFor.Spd40,
+                                   zPredProb.DistFor.Spd30)
+                             )
+
+Testdf<-ggpredict(SPD.f_FULL_Sep, terms=c("zDFR [all]","f.speed"))
+Testdf$Xa <- (Testdf$x*sd(RoeDeer.df$dist_cover))+
+  mean(RoeDeer.df$dist_cover)
+
+
+```
+
+
+
+## Graphical output
+
+
+```{r}
+
+SepSpd_DistFor <- ggplot(data = Testdf, aes(Xa, predicted))+
+  geom_ribbon(aes(ymin=conf.low, ymax=conf.high,
+                  fill=group), alpha=0.15)+
+  geom_line(aes(color=group,
+                lty=group),
+            lwd=1.6)+
+  scale_x_continuous(expand=c(0,0))+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,0.5),
+                     breaks = seq(0,0.5,0.1))+
+  ylab("Probability of roe deer - vehicle collision")+
+  xlab("Distance to forest cover (meters)")+
+  scale_color_manual(values = c("#d0d1e6",
+                                "#a6bddb",
+                                "#67a9cf",
+                                "#3690c0",
+                                "#02818a",
+                                "#016450"))+
+  scale_fill_manual(values = c("#d0d1e6",
+                                "#a6bddb",
+                                "#67a9cf",
+                                "#3690c0",
+                                "#02818a",
+                                "#016450"))+
+  labs(fill="Posted speed limit (km/h)",
+       color="Posted speed limit (km/h)",
+       lty="Posted speed limit (km/h)")
+
+SepSpd_DistFor
+
+ggsave(plot = SepSpd_DistFor,
+       "SepSpd_DistFor.png",
+       width = 6, height = 5,
+       units = "in",
+       dpi=700)
+
+
+
+
+
+```
+
+
 
 
 # High speed land cover
@@ -996,9 +1318,10 @@ So I may be inefficient, but I first take each speed and create dummy variables 
 
 ```{r}
 
+
 ###### 60 KMH
 
-KMH60 <- subset(HighSpdCollisions, speed=="60")
+KMH60 <- subset(HighSpd, speed=="60")
 
 COVERCat60 <-c(rep("FOR",nrow(KMH60)),
                rep("AGR",nrow(KMH60)),
@@ -1016,7 +1339,7 @@ SPD60 <- rep("60", length(COVER60))
 
 ###### 70 KMH
 
-KMH70 <- subset(HighSpdCollisions, speed=="70")
+KMH70 <- subset(HighSpd, speed=="70")
 
 COVERCat70 <-c(rep("FOR",nrow(KMH70)),
                rep("AGR",nrow(KMH70)),
@@ -1033,7 +1356,7 @@ SPD70 <- rep("70", length(COVER70))
 
 ###### 80 KMH
 
-
+KMH80 <- subset(HighSpd, speed=="80")
 
 COVERCat80 <-c(rep("FOR",nrow(KMH80)),
                rep("AGR",nrow(KMH80)),
@@ -1104,8 +1427,42 @@ ggplot(data = HighSpeedCover, aes(CoverCat,CoverProp))+
   coord_polar("y", start = 0)+
   facet_wrap(~Speed)
   
+HighSpdCoverPlot <- ggplot()+
+  geom_histogram(data = subset(HighSpd,response=="0"),
+                 aes(dist_cover),
+                 fill="#016450",
+                 alpha=0.8,
+                 bins=20)+
+  geom_histogram(data = subset(HighSpd,response=="1"),
+                 aes(dist_cover),
+                 fill="#67a9cf",
+                 alpha=0.5,
+                 bins=20)+
+  facet_wrap(~f.speed)+
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_continuous(expand = c(0,0))+
+  xlab("Distance to forest cover (m)")+
+  geom_text(label="background",
+            color="#016450",
+            x=400, y=2500,
+            size=4)+
+  geom_text(label="collision",
+            color="#67a9cf",
+            size=4,
+            x=500, y=2000)
+  
 
+HighSpdCoverPlot
+  
+ggsave(plot = HighSpdCoverPlot,
+       "HighSpdCoverPlot.png",
+       height = 7, width = 9,
+       units = "in",
+       dpi=700)  
 
+Mean60 <- mean(KMH60$dist_cover)
+Mean70 <- mean(KMH70$dist_cover)
+Mean80 <- mean(KMH80$dist_cover)
 
 ```
 
