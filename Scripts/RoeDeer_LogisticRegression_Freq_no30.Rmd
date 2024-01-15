@@ -88,10 +88,14 @@ rsq <- function (x, y) cor(x, y) ^ 2
 
 RoeDeer.df <- read.csv("Data\\df_VikenRoeDeer_7080Combined.csv",
                          header=TRUE)
+table(RoeDeer.df$response)
+
 RoeDeer.df$f.speed <- as.factor(RoeDeer.df$speed)
 RoeDeer.df$f.speed_comb <- as.factor(RoeDeer.df$speed_comb)
 
 RoeDeer.df <- subset(RoeDeer.df, speed>30)
+
+RoeDeer_x70 <- subset(RoeDeer.df, speed!="70")
 
 
 ```
@@ -189,9 +193,27 @@ Prob.Int <- logit2prob(INT$coefficients[1])
 UnivariateModels[[2]]<-SPD.c<-glm(response ~ speed,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
+summary(SPD.c)
+
+```
+
+#### 70 removed because it sucks
+
+```{r}
+
+speed_no70<-SPD.c<-glm(response ~ speed,
+                        data = RoeDeer_x70,
+                        family = binomial(link="logit"))
+
+summary(speed_no70)
+
+logit2prob(-2.03)
+logit2prob(-2.06)
 
 
 ```
+
+
 
 
 ### categorical (factor, 70/80 seperated)
@@ -267,6 +289,8 @@ UnivariateModels[[8]]<-URBCOV<-glm(response ~ zURB,
 UnivariateModels[[9]]<-DISFOR<-glm(response ~ zDFR,
                         data = RoeDeer.df,
                         family = binomial(link="logit"))
+
+summary(DISFOR)
 
 ```
 
@@ -488,6 +512,35 @@ BivariateModels[[9]]<-
 ```
 
 
+## Additive "full" modesl
+These models are the "full" models minus forest cover, to illustrate how strong the effect of forest cover is.
+
+### Speed
+```{r}
+
+BivariateModels[[10]]<-SPD.f_NozDFR_Sep<-glm(response ~ f.speed+
+                                        zEFF+
+                                        zADT+
+                                        zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
+### Urban Cover
+```{r}
+
+BivariateModels[[11]]<-URB_NozDFR<-glm(response ~ zURB+
+                                        zEFF+
+                                        zADT+
+                                        zWAT,
+                        data = RoeDeer.df,
+                        family = binomial(link="logit"))
+
+```
+
+
 
 ## Bivariate AICc table
 
@@ -502,7 +555,9 @@ BivariateModnames <- c("DIST FOREST",
                        "SPEEDf_TRAFFIC",
                        "SPEEDf_FULL",
                        "URBAN COVER_FULL",
-                       "SepSPEEDf_FULL_INX")
+                       "SepSPEEDf_FULL_INX",
+                       "SPEED_NozDFR",
+                       "Urban_NozDFR")
 
 
 ## generate and print AICc table
@@ -800,11 +855,11 @@ summary(SPD.c_FULL_INX)
 SpdDistFor_Eqn <- function(x,z){
   SPD.c_FULL_INX$coefficients[1]+
     (SPD.c_FULL_INX$coefficients[2]*z)+  #speed
-    (SepSPD.f_FULL_INX$coefficients[3]*x)+  #zDFR
-    (SepSPD.f_FULL_INX$coefficients[4]*mean(RoeDeer.df$zEFF))+  #zEFF
-    (SepSPD.f_FULL_INX$coefficients[5]*mean(RoeDeer.df$zADT))+  #zADT
-    (SepSPD.f_FULL_INX$coefficients[6]*mean(RoeDeer.df$zWAT))+  #ZWAT
-    (SepSPD.f_FULL_INX$coefficients[7]*(z*x)) #speed*zDFR
+    (SPD.c_FULL_INX$coefficients[3]*x)+  #zDFR
+    (SPD.c_FULL_INX$coefficients[4]*mean(RoeDeer.df$zEFF))+  #zEFF
+    (SPD.c_FULL_INX$coefficients[5]*mean(RoeDeer.df$zADT))+  #zADT
+    (SPD.c_FULL_INX$coefficients[6]*mean(RoeDeer.df$zWAT))+  #ZWAT
+    (SPD.c_FULL_INX$coefficients[7]*(z*x)) #speed*zDFR
 }
 
 (0-mean(RoeDeer.df$dist_cover))/sd(RoeDeer.df$dist_cover)
@@ -813,6 +868,8 @@ SpdDistFor_Eqn <- function(x,z){
 logit2prob(SpdDistFor_Eqn(x=-0.71,z=80))
 
 logit2prob(SpdDistFor_Eqn(x=-0.32,z=70))
+
+0.41-0.36
 
 Testdf<-ggpredict(SepSPD.f_FULL_INX,
                   terms=c("zDFR [all]","f.speed"))
